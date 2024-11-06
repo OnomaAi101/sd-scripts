@@ -37,6 +37,7 @@ from .train_util import (
     ControlNetSubset,
     DreamBoothDataset,
     FineTuningDataset,
+    EnsuredFinetuningDataset,
     ControlNetDataset,
     DatasetGroup,
 )
@@ -476,7 +477,7 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
             dataset_klass = DreamBoothDataset
         else:
             subset_klass = FineTuningSubset
-            dataset_klass = FineTuningDataset
+            dataset_klass = EnsuredFinetuningDataset #FineTuningDataset #override, this is subclass of FineTuningDataset
 
         subsets = [subset_klass(**asdict(subset_blueprint.params)) for subset_blueprint in dataset_blueprint.subsets]
         dataset = dataset_klass(subsets=subsets, **asdict(dataset_blueprint.params))
