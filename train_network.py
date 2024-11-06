@@ -220,7 +220,12 @@ class NetworkTrainer:
             ), "when caching latents, either color_aug or random_crop cannot be used / latentをキャッシュするときはcolor_augとrandom_cropは使えません"
 
         self.assert_extra_args(args, train_dataset_group)
-
+        for dataset in train_dataset_group.datasets:
+            assert hasattr(dataset, "initialize"), f"Dataset {dataset} does not have initialize method. The class is {type(dataset)}"
+            print(f"Initializing dataset: {dataset}")
+            dataset.initialize(
+                gradient_accumulation_steps=args.gradient_accumulation_steps, target_caption=args.target_caption
+            )
         # acceleratorを準備する
         logger.info("preparing accelerator")
         accelerator = train_util.prepare_accelerator(args)
@@ -800,7 +805,6 @@ class NetworkTrainer:
             metadata["ss_epoch"] = str(epoch + 1)
 
             accelerator.unwrap_model(network).on_epoch_start(text_encoder, unet)
-
             for step, batch in enumerate(train_dataloader):
                 current_step.value = global_step
                 with accelerator.accumulate(training_model):
