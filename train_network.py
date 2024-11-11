@@ -224,7 +224,7 @@ class NetworkTrainer:
             assert hasattr(dataset, "initialize"), f"Dataset {dataset} does not have initialize method. The class is {type(dataset)}"
             print(f"Initializing dataset: {dataset}")
             dataset.initialize(
-                gradient_accumulation_steps=args.gradient_accumulation_steps, target_caption=args.target_caption
+                gradient_accumulation_steps=args.gradient_accumulation_steps, target_caption=args.target_caption, fix_reg_contrastive=args.fix_reg_contrastive
             )
         # acceleratorを準備する
         logger.info("preparing accelerator")
