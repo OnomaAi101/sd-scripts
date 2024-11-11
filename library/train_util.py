@@ -2013,6 +2013,7 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
                     # Replace a random image key with a fixed image key
                     replace_idx = random.randint(0, len(image_keys) - 1)
                     fixed_image_key = random.choice(fixed_image_keys)
+                    print(f"Replacing {image_keys[replace_idx]} with {fixed_image_key}")
                     image_keys[replace_idx] = fixed_image_key
 
                 if self.fix_reg_contrastive:
@@ -2021,13 +2022,16 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
                     if non_fixed_indices:
                         non_fixed_in_batch = set(image_keys) & set(non_fixed_indices)
                         if not non_fixed_in_batch:
-                            # Replace another random image key with a non-fixed image key
-                            replace_idx = random.randint(0, len(image_keys) - 1)
-                            # Avoid replacing the fixed image
-                            while replace_idx == replace_idx:
+                            if len(image_keys) != 1:
+                                # we can't break infinite loop if 1 
+                                # Replace another random image key with a non-fixed image key
                                 replace_idx = random.randint(0, len(image_keys) - 1)
-                            non_fixed_image_key = random.choice(non_fixed_indices)
-                            image_keys[replace_idx] = non_fixed_image_key
+                                # Avoid replacing the fixed image
+                                while replace_idx == replace_idx:
+                                    replace_idx = random.randint(0, len(image_keys) - 1)
+                                print(f"Replacing {image_keys[replace_idx]} with non-fixed")
+                                non_fixed_image_key = random.choice(non_fixed_indices)
+                                image_keys[replace_idx] = non_fixed_image_key
 
         # Initialize the lists to collect data
         loss_weights = []
