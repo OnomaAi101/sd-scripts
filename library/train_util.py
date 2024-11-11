@@ -1982,7 +1982,6 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
         self.fixed_bucket_indices = fixed_bucket_indices
         self.non_fixed_bucket_indices = non_fixed_bucket_indices
 
-
     def __getitem__(self, index):
         if self.target_caption is None:
             return super().__getitem__(index)
@@ -1994,44 +1993,65 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
         # Get the image keys for the current batch
         image_keys = list(bucket[image_index : image_index + bucket_batch_size])
 
-        # Initialize the step counter if it doesn't exist
-        if not hasattr(self, "step_counter"):
-            self.step_counter = 0
-        self.step_counter += 1
+        # Initialize accumulation counters if they don't exist
+        if not hasattr(self, "accumulation_step_counter"):
+            self.accumulation_step_counter = 0
+            self.fixed_in_accumulation = False
+            self.non_fixed_in_accumulation = False
 
-        # Check if we need to enforce the inclusion of fixed indices
-        if self.step_counter % self.gradient_accumulation_step == 0:
-            fixed_indices = self.fixed_bucket_indices[bucket_index]
-            if fixed_indices:
-                # Get the fixed image keys for this bucket
-                fixed_image_keys = [
-                    i if isinstance(i, str) else bucket[i] for i in fixed_indices
-                ]
-                # Check if any fixed image keys are already in the batch
-                fixed_in_batch = set(image_keys) & set(fixed_image_keys)
-                if not fixed_in_batch:
-                    # Replace a random image key with a fixed image key
-                    replace_idx = random.randint(0, len(image_keys) - 1)
-                    fixed_image_key = random.choice(fixed_image_keys)
-                    print(f"Replacing {image_keys[replace_idx]} with {fixed_image_key}")
-                    image_keys[replace_idx] = fixed_image_key
+        # Increment the accumulation step counter
+        self.accumulation_step_counter += 1
 
-                if self.fix_reg_contrastive:
-                    # Ensure at least one non-fixed image key is in the batch
-                    non_fixed_indices = self.non_fixed_bucket_indices[bucket_index]
-                    if non_fixed_indices:
-                        non_fixed_in_batch = set(image_keys) & set(non_fixed_indices)
-                        if not non_fixed_in_batch:
-                            if len(image_keys) != 1:
-                                # we can't break infinite loop if 1 
-                                # Replace another random image key with a non-fixed image key
-                                replace_idx = random.randint(0, len(image_keys) - 1)
-                                # Avoid replacing the fixed image
-                                while replace_idx == replace_idx:
-                                    replace_idx = random.randint(0, len(image_keys) - 1)
-                                print(f"Replacing {image_keys[replace_idx]} with non-fixed")
-                                non_fixed_image_key = random.choice(non_fixed_indices)
-                                image_keys[replace_idx] = non_fixed_image_key
+        # Get fixed and non-fixed image indices for the current bucket
+        fixed_indices = self.fixed_bucket_indices[bucket_index]
+        non_fixed_indices = self.non_fixed_bucket_indices[bucket_index]
+
+        # Convert indices to image keys
+        fixed_image_keys = set(fixed_indices)
+        non_fixed_image_keys = set(non_fixed_indices)
+
+        # Check if fixed image is already in the batch
+        fixed_in_batch = fixed_image_keys.intersection(image_keys)
+        if fixed_in_batch:
+            self.fixed_in_accumulation = True
+
+        # Check if non-fixed image is already in the batch
+        if self.fix_reg_contrastive:
+            non_fixed_in_batch = non_fixed_image_keys.intersection(image_keys)
+            if non_fixed_in_batch:
+                self.non_fixed_in_accumulation = True
+
+        # Enforce inclusion of fixed image if not already included in the accumulation cycle
+        if not self.fixed_in_accumulation and fixed_image_keys:
+            # Replace a random image key with a fixed image key
+            replace_idx = random.randint(0, len(image_keys) - 1)
+            fixed_image_key = random.choice(list(fixed_image_keys))
+            image_keys[replace_idx] = fixed_image_key
+            print(f"Fixed image key {fixed_image_key} included in batch")
+            self.fixed_in_accumulation = True
+
+        # Enforce inclusion of non-fixed image if not already included
+        if (
+            self.fix_reg_contrastive
+            and not self.non_fixed_in_accumulation
+            and non_fixed_image_keys
+        ):
+            # Ensure we have more than one image to avoid infinite loop
+            if len(image_keys) > 1:
+                replace_idx_non_fixed = random.randint(0, len(image_keys) - 1)
+                # Avoid replacing the fixed image
+                while image_keys[replace_idx_non_fixed] in fixed_image_keys:
+                    replace_idx_non_fixed = random.randint(0, len(image_keys) - 1)
+                non_fixed_image_key = random.choice(list(non_fixed_image_keys))
+                image_keys[replace_idx_non_fixed] = non_fixed_image_key
+                print(f"Non-fixed image key {non_fixed_image_key} included in batch")
+                self.non_fixed_in_accumulation = True
+
+        # Reset counters after reaching the accumulation step
+        if self.accumulation_step_counter >= self.gradient_accumulation_step:
+            self.accumulation_step_counter = 0
+            self.fixed_in_accumulation = False
+            self.non_fixed_in_accumulation = False
 
         # Initialize the lists to collect data
         loss_weights = []
