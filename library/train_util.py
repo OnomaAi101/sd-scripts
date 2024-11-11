@@ -1960,11 +1960,13 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
         self,
         gradient_accumulation_steps: int = 64,
         target_caption: str = "shinosawa_hiro, idolmaster",
+        fix_reg_contrastive: bool = False,
     ):
         # usage: dataset.initialize(gradient_accumulation_steps=4, target_caption="char_name")
         self.gradient_accumulation_step = gradient_accumulation_steps
         if target_caption is None:
             return
+        self.fix_reg_contrastive = fix_reg_contrastive
         self.target_caption = target_caption
         fixed_bucket_indices = []
         non_fixed_bucket_indices = []
@@ -2012,6 +2014,7 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
 
         # Check if fixed image is already in the batch
         fixed_in_batch = fixed_image_keys.intersection(image_keys)
+        #print(f"Fixed in batch: {fixed_in_batch}, {self.accumulation_step_counter}")
         if fixed_in_batch:
             self.fixed_in_accumulation = True
 
@@ -2020,7 +2023,6 @@ class EnsuredDreamBoothDataset(DreamBoothDataset):
             non_fixed_in_batch = non_fixed_image_keys.intersection(image_keys)
             if non_fixed_in_batch:
                 self.non_fixed_in_accumulation = True
-
         # Enforce inclusion of fixed image if not already included in the accumulation cycle
         if not self.fixed_in_accumulation and fixed_image_keys:
             # Replace a random image key with a fixed image key
@@ -4573,6 +4575,12 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         type=str,
         default=None,
         help="target caption for training with batch regularization / バッチ正則化を行うためのターゲットキャプション (ex: 'special cat')",
+    )
+    
+    parser.add_argument(
+        "--fix_reg_contrastive",
+        action="store_true",
+        help="force contrastive loss in regularization / 正則化のcontrastive lossを固定する",
     )
 
     if support_dreambooth:
