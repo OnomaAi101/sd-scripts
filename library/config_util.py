@@ -38,6 +38,7 @@ from .train_util import (
     DreamBoothDataset,
     FineTuningDataset,
     EnsuredFinetuningDataset,
+    EnsuredDreamBoothDataset,
     ControlNetDataset,
     DatasetGroup,
 )
@@ -466,7 +467,7 @@ class BlueprintGenerator:
 
 
 def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlueprint):
-    datasets: List[Union[DreamBoothDataset, FineTuningDataset, ControlNetDataset]] = []
+    datasets: List[Union[EnsuredDreamBoothDataset, EnsuredFinetuningDataset, ControlNetDataset]] = []
 
     for dataset_blueprint in dataset_group_blueprint.datasets:
         if dataset_blueprint.is_controlnet:
@@ -474,7 +475,7 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
             dataset_klass = ControlNetDataset
         elif dataset_blueprint.is_dreambooth:
             subset_klass = DreamBoothSubset
-            dataset_klass = DreamBoothDataset
+            dataset_klass = EnsuredDreamBoothDataset
         else:
             subset_klass = FineTuningSubset
             dataset_klass = EnsuredFinetuningDataset #FineTuningDataset #override, this is subclass of FineTuningDataset
@@ -486,7 +487,7 @@ def generate_dataset_group_by_blueprint(dataset_group_blueprint: DatasetGroupBlu
     # print info
     info = ""
     for i, dataset in enumerate(datasets):
-        is_dreambooth = isinstance(dataset, DreamBoothDataset)
+        is_dreambooth = isinstance(dataset, EnsuredDreamBoothDataset)
         is_controlnet = isinstance(dataset, ControlNetDataset)
         info += dedent(
             f"""\
